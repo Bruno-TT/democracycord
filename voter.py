@@ -1,5 +1,5 @@
 #importations
-import discord, logging
+import discord, logging, asyncio
 
 #setting up logging
 logging.basicConfig(level=logging.INFO)
@@ -14,12 +14,12 @@ active_votes={}
 class vote():
     
     #alternate constructor
-    async def new(self, duration, intitative_message, winCommand, percentNeeded):
+    async def new(self, duration, intitiative_message, winCommand, percentNeeded):
         #get the vote channel
         voteChannel=client.get_guild(588794934526607370).get_channel(588794994572263444)
 
         #send the voting message and store it in self.message
-        self.message = await voteChannel.send("New vote initiated! This is a vote in favor of {0}. {1}% or more of the total votes need to be in favor for the initiative to be passed.".format(initiative_message, 100*percentNeeded))
+        self.message = await voteChannel.send("New vote initiated! This is a vote in favor of {0}. {1}% or more of the total votes need to be in favor for the initiative to be passed.".format(intitiative_message, 100*percentNeeded))
 
 
         #add the voting options to the message
@@ -29,20 +29,26 @@ class vote():
         #add self to the votes list
         active_votes[self.message.id]=self
 
+        #attributifying constructor parameters
         self.winCommand=winCommand
         self.percentNeeded=percentNeeded
+
+        #wait for the votes
+        await asyncio.sleep(duration)
+
+        #finish the vote
+        await self.remove()
+
 
     #called when the duration is over / the vote is ended 
     async def remove(self):
 
         #remove self from the votes dictionary
-        del active_votes[self]
-
-        #getting all the reactions to iterate through
-        allReactions=self.message.reactions
+        del active_votes[self.message.id]
         
+        #TODO: fix
         #for every reaction on the message
-        for reaction in allReactions:
+        for reaction in self.message.reactions:
 
             #if the bot applied that reaction
             if client.user in await reaction.users().flatten():
@@ -56,6 +62,10 @@ class vote():
         #getting all the reactions to iterate through
         allReactions=self.message.reactions
 
+        votesFor=0
+        votesAgainst=0
+
+        #TODO: FIX
         #iterating through all the reactions
         for reaction in allReactions:
             
@@ -77,22 +87,52 @@ class vote():
 
         #determining whether or not the initiative passed
         if actualPercent>=self.percentNeeded:
+        
+            #the initiative passed
+            message="The vote at https://discordapp.com/channels/588794934526607370/588794994572263444/{0} has finished. The initiative has PASSED".format(self.message.id)
 
-            passed=True
-            ##############continue
+            #do the actual win command
+            await winCommand()
 
-        await voteChannel.send(content="The vote at https://discordapp.com/channels/588794934526607370/588794994572263444/{0} has finished.".format(self.message.id))
+        #otherwise
+        else:
+
+            #the initiative failed.
+            message="The vote at https://discordapp.com/channels/588794934526607370/588794994572263444/{0} has finished. The initiative has FAILED".format(self.message.id)
+
+        await voteChannel.send(content=message)
 
 #whenever a message comes in
 @client.event
 async def on_message(message):
 
+    commands=message.content.split(" ")
+
     #if someone wants to make a new vote
-    if message.content=="!newVote":
+    if commands[0]=="!newVote":
         
-        #TODO: register the vote
-        v=vote()
-        await v.new(100)
+        #if it's a vote to mute
+        if len(commands)==3 and commands[1]=="mute":
+
+            #and they've tagged someone
+            if len(message.mentions)==1:
+
+                #set up the vote
+                duration=10
+                initiative_message="muting {0}".format(message.mentions[0].nick)
+                mutePerson=message.mentions[0]
+                winCommand=(lambda x=mutePerson: x.edit(mute=True))
+                v=vote()
+                await v.new(duration, initiative_message, winCommand, 0.75)
+
+
+    
+    #help command implementation
+    if message.content=="!voteHelp":
+
+        #send help message
+        await message.channel.send(content="possible syntaxes: '!newVote mute @Bruno'")
+        
 
 #when a reaction is added
 @client.event
@@ -127,7 +167,7 @@ async def on_reaction_remove(reaction, user):
         await reaction.message.add_reaction(reaction.emoji)
     
     #if the vote was on a voting message
-    if reaction.message.id in active_votes:
+    if (reaction.message.id in active_votes) and (client.user != user):
 
         #notify the user
         await user.send(content="Your vote has been de-registered. Did you change your mind?")
