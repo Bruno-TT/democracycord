@@ -32,13 +32,14 @@ class vote():
         #attributifying constructor parameters
         self.winCommand=winCommand
         self.percentNeeded=percentNeeded
+        self.users_for, self.users_against=[], []
+        self.user_reactions_for, self.user_reactions_against = {}, {}
 
         #wait for the votes
         await asyncio.sleep(duration)
 
         #finish the vote
         await self.remove()
-
 
     #called when the duration is over / the vote is ended 
     async def remove(self):
@@ -60,27 +61,35 @@ class vote():
         voteChannel=self.message.channel
 
         #getting all the reactions to iterate through
-        allReactions=self.message.reactions
+        # allReactions=self.message.reactions
 
-        votesFor=0
-        votesAgainst=0
+        # votesFor=0
+        # votesAgainst=0
 
         #TODO: FIX
         #iterating through all the reactions
-        for reaction in allReactions:
+        # for reaction in allReactions:
             
 
-            #if it's the pro votes
-            if reaction.emoji=="✅":
+        #     #if it's the pro votes
+        #     if reaction.emoji=="✅":
 
-                #register the number of votes for
-                votesFor=reaction.count
+        #         #register the number of votes for
+        #         votesFor=reaction.count
             
-            #if it's the con votes
-            if reaction.emoji=="❎":
+        #     #if it's the con votes
+        #     if reaction.emoji=="❎":
 
-                #register the number of votes against
-                votesAgainst=reaction.count
+        #         #register the number of votes against
+        #         votesAgainst=reaction.count
+
+        assert len(self.users_for)==len(self.user_reactions_for) and len(self.users_against)==len(self.user_reactions_against)
+
+        votesFor=len(self.users_for)
+        votesAgainst=len(self.users_against)
+
+        print(str(votesFor)+" votes for")
+        print(str(votesAgainst)+" votes against")
 
         #calculating the percentage of votes in favor of the initiative.
         actualPercent=votesFor/(votesFor + votesAgainst)
@@ -92,7 +101,7 @@ class vote():
             message="The vote at https://discordapp.com/channels/588794934526607370/588794994572263444/{0} has finished. The initiative has PASSED".format(self.message.id)
 
             #do the actual win command
-            await winCommand()
+            await self.winCommand()
 
         #otherwise
         else:
@@ -101,6 +110,96 @@ class vote():
             message="The vote at https://discordapp.com/channels/588794934526607370/588794994572263444/{0} has finished. The initiative has FAILED".format(self.message.id)
 
         await voteChannel.send(content=message)
+
+    async def register_user_vote(self, user, reaction):
+
+        #if the user somehow reacted with an emoji despite already having that vote registered
+        if (reaction.emoji=="✅" and user in self.users_for) or (reaction.emoji=="❎" and user in self.users_against):
+            
+            await user.send(content="how the fuck did you do that")
+            return False
+
+        #if the user previously voted AGAINST but has now voted FOR
+        elif (reaction.emoji=="✅" and user in self.users_against):
+
+            #remove them from the list of people that voted AGAINST
+            self.users_against.remove(user)
+
+            #remove their reaction from the message
+            await self.user_reactions_against[user].remove(user)
+
+            #remove their old reaction object from the dictionary
+            del self.user_reactions_against[user]
+            
+            #add them to the list of users that voted FOR
+            self.users_for.append(user)
+
+            #add the reaction object to the FOR reaction objects dict
+            self.user_reactions_for[user]=reaction
+            
+            #vote successfully registered
+            return True 
+
+        #if the user previously voted FOR but has now voted AGAINST
+        elif (reaction.emoji=="❎" and user in self.users_for):
+            
+            #remove them from the list of people that voted FOR
+            self.users_for.remove(user)
+
+            #remove their reaction from the message
+            await self.user_reactions_for[user].remove(user)
+
+            #remove their old reaction object from the dictionary
+            del self.user_reactions_for[user]
+
+            #add them to the list of users that voted AGAINST
+            self.users_against.append(user)
+
+            #add the reaction object to the AGAINST reaction objects dict
+            self.user_reactions_against[user]=reaction
+        
+            #successfully registered vote
+            return True
+
+        #if it was a clean FOR vote
+        elif reaction.emoji=="✅":
+
+            #add them to the list of users that voted FOR
+            self.users_for.append(user)
+
+            #add their reaction to the dictionary
+            self.user_reactions_for[user]=reaction
+
+            #successfully registered vote
+            return True
+        
+        #if it was a clean AGAINST vote
+        elif reaction.emoji=="❎":
+
+            #add them to the list of users that voted AGAINST
+            self.users_against.append(user)
+
+            #add their reaction to the dictionary
+            self.user_reactions_against[user]=reaction
+
+            #successfully registered vote
+            return True
+
+        else:
+
+            return False
+
+    async def deregister_user_vote(self, user, reaction):
+        if reaction.emoji=="❎" and user in self.users_against:
+            self.users_against.remove(user)
+            del self.user_reactions_against[user]
+            return True
+        elif reaction=="✅" and user in self.users_for:
+            self.users_for.remove(user)
+            del self.user_reactions_for[user]
+            return True
+        else:
+            return False
 
 #whenever a message comes in
 @client.event
@@ -118,12 +217,37 @@ async def on_message(message):
             if len(message.mentions)==1:
 
                 #set up the vote
-                duration=10
-                initiative_message="muting {0}".format(message.mentions[0].nick)
+                win_proportion=0.66
+                duration=60
+                initiative_message="muting {0}".format(message.mentions[0].display_name)
                 mutePerson=message.mentions[0]
                 winCommand=(lambda x=mutePerson: x.edit(mute=True))
                 v=vote()
-                await v.new(duration, initiative_message, winCommand, 0.75)
+                await v.new(duration, initiative_message, winCommand, win_proportion)
+
+        #if it's a vote to rename someone
+        elif len(commands)>=4 and commands[1]=="rename":
+
+            #and they've tagged someone
+            if len(message.mentions)==1:
+
+                new_name=" ".join(commands[3:])
+
+                #set up the vote
+
+                win_proportion=0.5
+
+                duration=30
+
+                rename_person=message.mentions[0]
+
+                initiative_message="renaming {} to {}".format(rename_person.display_name, new_name)
+                
+                winCommand=(lambda x=rename_person: x.edit(nick=new_name))
+
+                v=vote()
+
+                await v.new(duration, initiative_message, winCommand, win_proportion)
 
 
     
@@ -141,8 +265,17 @@ async def on_reaction_add(reaction, user):
     #if it wasn't me who reacted
     if (reaction.message.id in active_votes) and (user != client.user):
 
+        #get the vote object
+        vote=active_votes[reaction.message.id]
+
+        #call the register_user_vote command
+        voting_success=await vote.register_user_vote(user, reaction)
+
         #register the vote
-        await user.send(content="Thanks for voting! Your vote has been registered.")
+        if voting_success:
+            await user.send(content="Thanks for voting! Your vote has been registered.")
+        else:
+            await user.send(content="You fucced it up boi. How did u do that.")
     
     #if there's now multiple reactions and the client has reacted to the message, remove the reaction
     if (reaction.count>1) and (client.user in await reaction.users().flatten()):
@@ -163,14 +296,24 @@ async def on_reaction_remove(reaction, user):
     #if there's no longer reactions, it's a voting message, and the emoji is a voting emoji
     if (reaction.count<1) and (reaction.message.id in active_votes) and (reaction.emoji in ("✅","❎")):
 
-        #add a base vote
+        #add a base reaction
         await reaction.message.add_reaction(reaction.emoji)
     
-    #if the vote was on a voting message
-    if (reaction.message.id in active_votes) and (client.user != user):
+    #if the vote was on a voting message and it wasn't me who removed the reaction and it was a vote removal
+    if (reaction.message.id in active_votes) and (client.user != user) and (reaction.emoji in ("✅","❎")):
 
-        #notify the user
-        await user.send(content="Your vote has been de-registered. Did you change your mind?")
+        vote=active_votes[reaction.message.id]
+
+        removal_success=await vote.deregister_user_vote(user, reaction)
+        
+        if removal_success:
+
+            #notify the user
+            await user.send(content="Your vote has been de-registered. Did you change your mind?")
+        
+        else:
+
+            await user.send(content="Error deregistering vote. Fuck you.")
 
 
 
