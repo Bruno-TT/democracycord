@@ -19,7 +19,7 @@ class vote():
         voteChannel=client.get_guild(588794934526607370).get_channel(588794994572263444)
 
         #send the voting message and store it in self.message
-        self.message = await voteChannel.send("New vote initiated! This is a vote in favor of {0}. {1}% or more of the total votes need to be in favor for the initiative to be passed.".format(intitiative_message, 100*percentNeeded))
+        self.message = await voteChannel.send("New vote initiated! This is a vote in favor of {}. {}% or more of the total votes need to be in favor for the initiative to be passed. The vote will last {} seconds.".format(intitiative_message, 100*percentNeeded, duration))
 
 
         #add the voting options to the message
@@ -47,7 +47,6 @@ class vote():
         #remove self from the votes dictionary
         del active_votes[self.message.id]
         
-        #TODO: fix
         #for every reaction on the message
         for reaction in self.message.reactions:
 
@@ -60,36 +59,11 @@ class vote():
         #getting the channel to send the results message to
         voteChannel=self.message.channel
 
-        #getting all the reactions to iterate through
-        # allReactions=self.message.reactions
-
-        # votesFor=0
-        # votesAgainst=0
-
-        #TODO: FIX
-        #iterating through all the reactions
-        # for reaction in allReactions:
-            
-
-        #     #if it's the pro votes
-        #     if reaction.emoji=="✅":
-
-        #         #register the number of votes for
-        #         votesFor=reaction.count
-            
-        #     #if it's the con votes
-        #     if reaction.emoji=="❎":
-
-        #         #register the number of votes against
-        #         votesAgainst=reaction.count
-
+        #make sure that the
         assert len(self.users_for)==len(self.user_reactions_for) and len(self.users_against)==len(self.user_reactions_against)
 
         votesFor=len(self.users_for)
         votesAgainst=len(self.users_against)
-
-        print(str(votesFor)+" votes for")
-        print(str(votesAgainst)+" votes against")
 
         #calculating the percentage of votes in favor of the initiative.
         actualPercent=votesFor/(votesFor + votesAgainst)
@@ -219,11 +193,41 @@ async def on_message(message):
                 #set up the vote
                 win_proportion=0.66
                 duration=60
-                initiative_message="muting {0}".format(message.mentions[0].display_name)
                 mutePerson=message.mentions[0]
+                initiative_message="muting {0}".format(mutePerson.display_name)
                 winCommand=(lambda x=mutePerson: x.edit(mute=True))
                 v=vote()
                 await v.new(duration, initiative_message, winCommand, win_proportion)
+
+                #if it's a vote to mute
+        if len(commands)==3 and commands[1]=="unmute":
+
+            #and they've tagged someone
+            if len(message.mentions)==1:
+
+                #set up the vote
+                win_proportion=0.66
+                duration=60
+                unmutePerson=message.mentions[0]
+                initiative_message="unmuting {0}".format(unmutePerson.display_name)
+                winCommand=(lambda x=unmutePerson: x.edit(mute=False))
+                v=vote()
+                await v.new(duration, initiative_message, winCommand, win_proportion)
+
+        if len(commands)==3 and commands[1]=="voice_kick":
+
+            #and they've tagged someone
+            if len(message.mentions)==1:
+
+                #set up the vote
+                win_proportion=0.75
+                duration=60
+                kickPerson=message.mentions[0]
+                initiative_message="voice kicking {0}".format(kickPerson.display_name)
+                winCommand=(lambda x=kickPerson: x.edit(voice_channel=None))
+                v=vote()
+                await v.new(duration, initiative_message, winCommand, win_proportion)
+
 
         #if it's a vote to rename someone
         elif len(commands)>=4 and commands[1]=="rename":
@@ -231,23 +235,30 @@ async def on_message(message):
             #and they've tagged someone
             if len(message.mentions)==1:
 
+                #reconstruct the name
                 new_name=" ".join(commands[3:])
 
                 #set up the vote
 
+                #50% of people need to vote 
                 win_proportion=0.5
 
+                #lasts 30 seconds
                 duration=30
 
+                #the person to rename
                 rename_person=message.mentions[0]
 
+                #the initiative message that is sent in the message
                 initiative_message="renaming {} to {}".format(rename_person.display_name, new_name)
                 
+                #the actual command to rename them
                 winCommand=(lambda x=rename_person: x.edit(nick=new_name))
 
+                #instantiate a vote object
                 v=vote()
-
                 await v.new(duration, initiative_message, winCommand, win_proportion)
+
 
 
     
