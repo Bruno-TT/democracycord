@@ -10,6 +10,9 @@ client = discord.Client()
 #votes dictionary
 active_votes={}
 
+#ring role name
+ring_role="ringing (opt in)"
+
 #general class for a vote
 class vote():
     
@@ -267,6 +270,29 @@ async def on_message(message):
 
         #send help message
         await message.channel.send(content="possible syntaxes: '!newVote mute @Bruno'")
+        
+    #ring a text channel
+    if message.content=="!ring":
+        
+        #send @here
+        for i in range(10):
+            await message.channel.send(content="@here")
+    
+    #opt into ring role
+    if message.content=="!callMe":
+        
+        #get server
+        server=message.server
+        #get member
+        member=message.author
+        #get role
+        role=get(member.server.roles, name=ring_role)
+        
+        #assign role
+        await client.add_roles(member, role)
+        
+        #tell user role assigned
+        await message.channel.send(content="{0} will start receiving ring notifications".format(member.display_name))
         
 
 #when a reaction is added
