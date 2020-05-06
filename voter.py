@@ -1,5 +1,9 @@
 #importations
-import discord, logging, asyncio
+import discord, logging, asyncio, json, datetime
+
+vote_info_file_path = "vote_info.json"
+with open(vote_info_file_path) as vote_info_file:
+    vote_attributes=json.load(vote_info_file)
 
 #setting up logging
 logging.basicConfig(level=logging.INFO)
@@ -9,22 +13,31 @@ client = discord.Client()
 
 #votes dictionary
 active_votes={}
+members_with_active_votes=[]
+alert_times=[3600,600,300,60,30,10,5,3,2,1]
 
 #general class for a vote
 class vote():
     
     #alternate constructor
-    async def new(self, duration, intitiative_message, winCommand, percentNeeded):
+    async def new(self, duration, intitiative_message, winCommand, percentNeeded, min_yes_votes, creator):
         #get the vote channel
-        voteChannel=client.get_guild(588794934526607370).get_channel(588794994572263444)
+        server=client.get_guild(588794934526607370)
+        voteChannel=server.get_channel(588794994572263444)
+        self.server_member=server.me
+
+        self.min_yes_votes=min_yes_votes
 
         #send the voting message and store it in self.message
-        self.message = await voteChannel.send("New vote initiated! This is a vote in favor of {}. {}% or more of the total votes need to be in favor for the initiative to be passed. The vote will last {} seconds.".format(intitiative_message, 100*percentNeeded, duration))
+        message_base_text="New vote initiated! This is a vote in favor of {}\n{}% of the total people need to vote YES\nA minimum of {} people need to vote yes\nThe vote will last {} seconds.".format(intitiative_message, str(int(100*percentNeeded)), min_yes_votes, duration)
+        self.message = await voteChannel.send(message_base_text)
 
 
         #add the voting options to the message
         await self.message.add_reaction("✅")
         await self.message.add_reaction("❎")
+
+        self.message_link_str="https://discordapp.com/channels/588794934526607370/588794994572263444/{}".format(str(self.message.id))
 
         #add self to the votes list
         active_votes[self.message.id]=self
@@ -35,8 +48,29 @@ class vote():
         self.users_for, self.users_against=[], []
         self.user_reactions_for, self.user_reactions_against = {}, {}
 
+        members_with_active_votes.append(creator)
+
+        end_time=datetime.datetime.now()+datetime.timedelta(seconds=duration)
+
+        countdown_messages=[]
+
+        time_remaining=(end_time-datetime.datetime.now()).seconds
+        prev_time_remaining=time_remaining
+        while time_remaining>0:
+            await asyncio.sleep(1)
+            time_remaining=(end_time-datetime.datetime.now()).seconds
+            for alert_time in alert_times:
+                if time_remaining<alert_time and alert_time<prev_time_remaining:
+                    await self.message.channel.send(content="The message at {} has {} seconds remaining".format(self.message_link_str, str(alert_time)), delete_after=1)
+            prev_time_remaining=time_remaining
+
         #wait for the votes
-        await asyncio.sleep(duration)
+        # await asyncio.sleep(duration)
+
+        members_with_active_votes.remove(creator)
+
+        for old_cd_message in countdown_messages:
+            await old_cd_message.remove
 
         #finish the vote
         await self.remove()
@@ -46,33 +80,39 @@ class vote():
 
         #remove self from the votes dictionary
         del active_votes[self.message.id]
-        
-        #for every reaction on the message
-        for reaction in self.message.reactions:
 
-            #if the bot applied that reaction
-            if client.user in await reaction.users().flatten():
+
+        #remove the bot's base votes
+        await self.message.remove_reaction("✅", self.server_member)
+        await self.message.remove_reaction("❎", self.server_member)
+        
+        # #for every reaction on the message
+        # for reaction in self.message.reactions:
+
+        #     #if the bot applied that reaction
+        #     if client.user in await reaction.users().flatten():
                 
-                #remove the reaction
-                await reaction.message.remove_reaction(reaction.emoji, reaction.message.guild.me)
+        #         #remove the reaction
+        #         await reaction.message.remove_reaction(reaction.emoji, reaction.message.guild.me)
 
         #getting the channel to send the results message to
         voteChannel=self.message.channel
 
-        #make sure that the
+        #make sure that the dicts and lists all match up (meaning nothing has fucced up)
         assert len(self.users_for)==len(self.user_reactions_for) and len(self.users_against)==len(self.user_reactions_against)
 
         votesFor=len(self.users_for)
         votesAgainst=len(self.users_against)
 
         #calculating the percentage of votes in favor of the initiative.
-        actualPercent=votesFor/(votesFor + votesAgainst)
+        if votesFor == 0 and votesAgainst == 0 : actualPercent=0
+        else: actualPercent=votesFor/(votesFor + votesAgainst)
 
         #determining whether or not the initiative passed
-        if actualPercent>=self.percentNeeded:
+        if actualPercent>=self.percentNeeded and votesFor>=self.min_yes_votes:
         
             #the initiative passed
-            message="The vote at https://discordapp.com/channels/588794934526607370/588794994572263444/{0} has finished. The initiative has PASSED".format(self.message.id)
+            message="The vote at {} has finished. The initiative has PASSED".format(self.message_link_str)
 
             #do the actual win command
             await self.winCommand()
@@ -81,7 +121,7 @@ class vote():
         else:
 
             #the initiative failed.
-            message="The vote at https://discordapp.com/channels/588794934526607370/588794994572263444/{0} has finished. The initiative has FAILED".format(self.message.id)
+            message="The vote at {} has finished. The initiative has FAILED".format(self.message_link_str)
 
         await voteChannel.send(content=message)
 
@@ -163,111 +203,189 @@ class vote():
 
             return False
 
+    #called when a user removes their vote (by unreacting, not by adding another reaction)
     async def deregister_user_vote(self, user, reaction):
+
+        #if the user removed their AGAINST reaction
         if reaction.emoji=="❎" and user in self.users_against:
+
+            #remove them from the AGAINST list
             self.users_against.remove(user)
+
+            #remove their reaction from the AGAINST dict
             del self.user_reactions_against[user]
+
+            #success
             return True
+
+        #if the user removed their FOR reaction
         elif reaction=="✅" and user in self.users_for:
+
+            # remove them from the FOR list
             self.users_for.remove(user)
+
+            #remove their reaction from the FOR list
             del self.user_reactions_for[user]
+
+            #success
             return True
+
+        #otherwise
         else:
+
+            #oh god oh fuck we fucked up
             return False
 
 #whenever a message comes in
 @client.event
 async def on_message(message):
 
-    commands=message.content.split(" ")
+    #if the message was sent to the vote-creation channel
+    if message.channel.id==707556037334401135:
 
-    #if someone wants to make a new vote
-    if commands[0]=="!newVote":
-        
-        #if it's a vote to mute
-        if len(commands)==3 and commands[1]=="mute":
+        #because im not a psycopath
+        commands=message.content.split(" ")
 
-            #and they've tagged someone
-            if len(message.mentions)==1:
+        #if someone wants to make a new vote
+        #if it's a !newVote commeand and the person doesn't have an active vote
+        if commands[0]=="!newVote" and message.author not in members_with_active_votes:
+            
+            #if it's a vote to mute
+            if len(commands)==3 and commands[1]=="mute" and len(message.mentions)==1:
 
                 #set up the vote
-                win_proportion=0.66
-                duration=60
+                win_proportion=vote_attributes["mute_proportion"]
+                duration=vote_attributes["mute_duration"]
+                min_yes_votes=vote_attributes["mute_min_yes_votes"]
                 mutePerson=message.mentions[0]
                 initiative_message="muting {0}".format(mutePerson.display_name)
                 winCommand=(lambda x=mutePerson: x.edit(mute=True))
+                creator=message.author
                 v=vote()
-                await v.new(duration, initiative_message, winCommand, win_proportion)
+                await v.new(duration, initiative_message, winCommand, win_proportion, min_yes_votes, creator)
 
-                #if it's a vote to mute
-        if len(commands)==3 and commands[1]=="unmute":
+            #if it's a vote to unmute
+            if len(commands)==3 and commands[1]=="unmute" and len(message.mentions)==1:
 
-            #and they've tagged someone
-            if len(message.mentions)==1:
+                #and they've tagged someone
 
                 #set up the vote
-                win_proportion=0.66
-                duration=60
+                win_proportion=vote_attributes["unmute_proportion"]
+                duration=vote_attributes["unmute_duration"]
+                min_yes_votes=vote_attributes["unmute_min_yes_votes"]
                 unmutePerson=message.mentions[0]
                 initiative_message="unmuting {0}".format(unmutePerson.display_name)
                 winCommand=(lambda x=unmutePerson: x.edit(mute=False))
+                creator=message.author
                 v=vote()
-                await v.new(duration, initiative_message, winCommand, win_proportion)
+                await v.new(duration, initiative_message, winCommand, win_proportion, min_yes_votes ,creator)
 
-        if len(commands)==3 and commands[1]=="voice_kick":
-
-            #and they've tagged someone
-            if len(message.mentions)==1:
+            #if it's a voice kick command
+            if len(commands)==3 and commands[1]=="voice_kick" and len(message.mentions)==1:
 
                 #set up the vote
-                win_proportion=0.75
-                duration=60
+                win_proportion=vote_attributes["voice_kick_proportion"]
+                duration=vote_attributes["voice_kick_duration"]
+                min_yes_votes=vote_attributes["voice_kick_min_votes"]
                 kickPerson=message.mentions[0]
                 initiative_message="voice kicking {0}".format(kickPerson.display_name)
                 winCommand=(lambda x=kickPerson: x.edit(voice_channel=None))
+                creator=message.author
                 v=vote()
-                await v.new(duration, initiative_message, winCommand, win_proportion)
+                await v.new(duration, initiative_message, winCommand, win_proportion, min_yes_votes, creator)
 
 
-        #if it's a vote to rename someone
-        elif len(commands)>=4 and commands[1]=="rename":
-
-            #and they've tagged someone
-            if len(message.mentions)==1:
+            #if it's a vote to rename someone
+            elif len(commands)>=4 and commands[1]=="rename" and len(message.mentions)==1:
 
                 #reconstruct the name
                 new_name=" ".join(commands[3:])
 
+                if len(new_name)<=32:
+
+                    #set up the vote
+
+                    win_proportion=vote_attributes["rename_proportion"]
+                    duration=vote_attributes["rename_duration"]
+                    min_yes_votes=vote_attributes["rename_min_yes_votes"]
+
+                    #the person to rename
+                    rename_person=message.mentions[0]
+
+                    #the initiative message that is sent in the message
+                    initiative_message="renaming {} to {}".format(rename_person.display_name, new_name)
+                    
+                    #the actual command to rename them
+                    winCommand=(lambda x=rename_person: x.edit(nick=new_name))
+
+                    creator=message.author
+
+                    #instantiate a vote object
+                    v=vote()
+                    await v.new(duration, initiative_message, winCommand, win_proportion, min_yes_votes, creator)
+                
+                else:
+
+                    await message.channel.send(content="Error: discord only supports nicknames of length 32 or less.")
+
+            elif len(commands)>=3 and commands[1]=="ban" and len(message.mentions)==1:
+
                 #set up the vote
 
-                #50% of people need to vote 
-                win_proportion=0.5
+                win_proportion=vote_attributes["ban_proportion"]
+                duration=vote_attributes["ban_duration"]
+                min_yes_votes=vote_attributes["ban_min_yes_votes"]
 
-                #lasts 30 seconds
-                duration=30
-
-                #the person to rename
-                rename_person=message.mentions[0]
+                #the person to ban
+                ban_person=message.mentions[0]
 
                 #the initiative message that is sent in the message
-                initiative_message="renaming {} to {}".format(rename_person.display_name, new_name)
+                initiative_message="banning {}".format(ban_person.display_name)
                 
-                #the actual command to rename them
-                winCommand=(lambda x=rename_person: x.edit(nick=new_name))
+                #the actual command to ban them
+                winCommand=(lambda x=ban_person: x.ban(reason="DEMOCRACY"))
+
+                creator=message.author
 
                 #instantiate a vote object
                 v=vote()
-                await v.new(duration, initiative_message, winCommand, win_proportion)
+                await v.new(duration, initiative_message, winCommand, win_proportion, min_yes_votes, creator)
+
+
+            # elif len(commands)>=3 and commands[1]=="increase_duration" and len(message.mentions)==1:
+
+            #     #set up the vote
+
+            #     win_proportion=vote_attributes["ban_proportion"]
+            #     duration=vote_attributes["ban_duration"]
+            #     min_yes_votes=vote_attributes["ban_min_yes_votes"]
+
+            #     #the person to ban
+            #     ban_person=message.mentions[0]
+
+            #     #the initiative message that is sent in the message
+            #     initiative_message="banning {}".format(ban_person.display_name)
+                
+            #     #the actual command to ban them
+            #     winCommand=(lambda x=ban_person: x.ban(reason="DEMOCRACY"))
+
+            #     creator=message.author
+
+            #     #instantiate a vote object
+            #     v=vote()
+            #     await v.new(duration, initiative_message, winCommand, win_proportion, min_yes_votes, creator)
+            
+            
 
 
 
-    
-    #help command implementation
-    if message.content=="!voteHelp":
-
-        #send help message
-        await message.channel.send(content="possible syntaxes: '!newVote mute @Bruno'")
         
+        #help command implementation
+        if message.content=="!voteHelp":
+
+            #send help message
+            await message.channel.send(content="[this is WIP sory] possible syntaxes: '!newVote mute @Bruno'")
+            
 
 #when a reaction is added
 @client.event
