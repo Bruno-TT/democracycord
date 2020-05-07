@@ -1,0 +1,29 @@
+{
+    "mute_proportion":0.66,
+    "mute_duration":60,
+    "mute_min_yes_votes":2,
+
+    "unmute_proportion":0.66,
+    "unmute_duration":60,
+    "unmute_min_votes":2,
+
+    "voice_kick_proportion":0.66,
+    "voice_kick_duration":60,
+    "voice_kick_min_yes_votes":2,
+
+    "rename_proportion":0.5,
+    "rename_duration":30,
+    "rename_min_yes_votes":1,
+
+    "ban_proportion":0.75,
+    "ban_duration":7200,
+    "ban_min_yes_votes":3,
+
+    "server_rename_proportion":0.5,
+    "server_rename_duration":60,
+    "server_rename_min_yes_votes":2,
+
+    "unban_proportion":0.75,
+    "unban_duration":7200,
+    "unban_min_yes_votes":3
+}
