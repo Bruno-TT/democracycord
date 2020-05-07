@@ -248,7 +248,7 @@ async def on_message(message):
 
         #if someone wants to make a new vote
         #if it's a !newVote commeand and the person doesn't have an active vote
-        if commands[0]=="!newVote" and message.author not in members_with_active_votes:
+        if commands[0]=="!vote" and message.author not in members_with_active_votes:
             
             #if it's a vote to mute
             if len(commands)==3 and commands[1]=="mute" and len(message.mentions)==1:
@@ -343,7 +343,7 @@ async def on_message(message):
                 initiative_message="banning {}".format(ban_person.display_name)
                 
                 #the actual command to ban them
-                winCommand=(lambda x=ban_person: x.ban(reason="DEMOCRACY"))
+                winCommand=(lambda x=ban_person: x.ban(reason="DEMOCRACY", delete_message_days=0))
 
                 creator=message.author
 
@@ -351,31 +351,75 @@ async def on_message(message):
                 v=vote()
                 await v.new(duration, initiative_message, winCommand, win_proportion, min_yes_votes, creator)
 
+            elif len(commands)>=3 and commands[1]=="rename_server":
 
-            # elif len(commands)>=3 and commands[1]=="increase_duration" and len(message.mentions)==1:
+                #set up the vote
 
-            #     #set up the vote
+                win_proportion=vote_attributes["server_rename_proportion"]
+                duration=vote_attributes["server_rename_duration"]
+                min_yes_votes=vote_attributes["server_rename_min_yes_votes"]
 
-            #     win_proportion=vote_attributes["ban_proportion"]
-            #     duration=vote_attributes["ban_duration"]
-            #     min_yes_votes=vote_attributes["ban_min_yes_votes"]
+                #the person to ban
+                # ban_person=message.mentions[0]
+                new_name=" ".join(commands[2:])
 
-            #     #the person to ban
-            #     ban_person=message.mentions[0]
-
-            #     #the initiative message that is sent in the message
-            #     initiative_message="banning {}".format(ban_person.display_name)
+                #the initiative message that is sent in the message
+                initiative_message="renaming the server to {}".format(new_name)
                 
-            #     #the actual command to ban them
-            #     winCommand=(lambda x=ban_person: x.ban(reason="DEMOCRACY"))
+                #the actual command to ban them
+                winCommand=(lambda new_name=new_name, server=message.channel.guild:server.edit(name=new_name))
 
-            #     creator=message.author
+                creator=message.author
 
-            #     #instantiate a vote object
-            #     v=vote()
-            #     await v.new(duration, initiative_message, winCommand, win_proportion, min_yes_votes, creator)
+                #instantiate a vote object
+                v=vote()
+                await v.new(duration, initiative_message, winCommand, win_proportion, min_yes_votes, creator)
             
             
+            elif len(commands)==2 and commands[1]=="unban":
+
+                channel=message.channel
+                server=channel.guild
+                banned_users=[ban_entry.user.name for ban_entry in await server.bans()]
+                text=""
+                for n,banned_user in enumerate(banned_users):
+                    text+="{} : {}".format(str(n), banned_user)
+                await channel.send(content=text)
+            
+                        
+            elif len(commands)>=3 and commands[1]=="unban":
+
+                unban_user_index=int(commands[2])
+
+                channel=message.channel
+
+                server=channel.guild
+
+                banned_users=[ban_entry.user for ban_entry in await server.bans()]
+
+                unban_user=banned_users[unban_user_index]
+
+
+
+                #set up the vote
+
+                win_proportion=vote_attributes["unban_proportion"]
+                duration=vote_attributes["unban_duration"]
+                min_yes_votes=vote_attributes["unban_min_yes_votes"]
+
+                #the initiative message that is sent in the message
+                initiative_message="unbanning {}".format(unban_user.name)
+                
+                #the actual command to ban them
+                winCommand=(lambda sever=server, unban_person=unban_user:server.unban(unban_person))
+
+                creator=message.author
+
+                #instantiate a vote object
+                v=vote()
+                await v.new(duration, initiative_message, winCommand, win_proportion, min_yes_votes, creator)
+                
+
 
 
 
