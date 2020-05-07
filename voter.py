@@ -240,11 +240,29 @@ class vote():
 @client.event
 async def on_message(message):
 
+    commands=message.content.split(" ")
+
+    if "ringing" in message.channel.name and message.content=="!ring":
+
+        for i in range(10):
+
+            await message.channel.send(content="@here")
+            await asyncio.sleep(1)
+
+    if message.content=="!ring toggle":
+
+        author=message.author
+
+        role=message.channel.guild.get_role(707265471086329886)
+
+        member_has_role=role in author.roles
+
+        if member_has_role:await author.remove_roles(role)
+        else: await author.add_roles(role)
+        
+
     #if the message was sent to the vote-creation channel
     if message.channel.id==707556037334401135:
-
-        #because im not a psycopath
-        commands=message.content.split(" ")
 
         #if someone wants to make a new vote
         #if it's a !newVote commeand and the person doesn't have an active vote
