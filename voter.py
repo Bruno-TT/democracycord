@@ -114,6 +114,8 @@ class vote():
             #the initiative passed
             message="The vote at {} has finished. The initiative has PASSED".format(self.message_link_str)
 
+            await voteChannel.send(content=message)
+
             #do the actual win command
             await self.winCommand()
 
@@ -123,7 +125,7 @@ class vote():
             #the initiative failed.
             message="The vote at {} has finished. The initiative has FAILED".format(self.message_link_str)
 
-        await voteChannel.send(content=message)
+            await voteChannel.send(content=message)
 
     async def register_user_vote(self, user, reaction):
 
@@ -242,7 +244,7 @@ async def on_message(message):
 
     commands=message.content.split(" ")
 
-    if "ringing" in message.channel.name and message.content=="!ring":
+    if message.content=="!ring" and "ringing" in message.channel.name:
 
         for i in range(10):
 
@@ -304,7 +306,7 @@ async def on_message(message):
                 #set up the vote
                 win_proportion=vote_attributes["voice_kick_proportion"]
                 duration=vote_attributes["voice_kick_duration"]
-                min_yes_votes=vote_attributes["voice_kick_min_votes"]
+                min_yes_votes=vote_attributes["voice_kick_min_yes_votes"]
                 kickPerson=message.mentions[0]
                 initiative_message="voice kicking {0}".format(kickPerson.display_name)
                 winCommand=(lambda x=kickPerson: x.edit(voice_channel=None))
@@ -334,7 +336,11 @@ async def on_message(message):
                     initiative_message="renaming {} to {}".format(rename_person.display_name, new_name)
                     
                     #the actual command to rename them
-                    winCommand=(lambda x=rename_person: x.edit(nick=new_name))
+                    async def winCommand(x=rename_person, new_name=new_name):
+                        await x.edit(nick="Changing Nickname...")
+                        await asyncio.sleep(2)
+                        await x.edit(nick=new_name)
+
 
                     creator=message.author
 
