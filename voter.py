@@ -132,7 +132,8 @@ class vote():
         #if the user somehow reacted with an emoji despite already having that vote registered
         if (reaction.emoji=="✅" and user in self.users_for) or (reaction.emoji=="❎" and user in self.users_against):
             
-            await user.send(content="how the fuck did you do that")
+            # await user.send(content="how the fuck did you do that")
+            pass
             return False
 
         #if the user previously voted AGAINST but has now voted FOR
@@ -246,10 +247,17 @@ async def on_message(message):
 
     if message.content=="!ring" and "ringing" in message.channel.name:
 
-        for i in range(10):
+        for i in range(5):
+            for member in message.channel.members:
+                # while 1:
+                try:
+                    await member.send(content="ring ring!")
+                    # break
+                except AttributeError:
+                    pass
+                    # continue
 
             await message.channel.send(content="@here")
-            await asyncio.sleep(1)
 
     if message.content=="!ring toggle":
 
@@ -470,9 +478,11 @@ async def on_reaction_add(reaction, user):
 
         #register the vote
         if voting_success:
-            await user.send(content="Thanks for voting! Your vote has been registered.")
+            pass
+            # await user.send(content="Thanks for voting! Your vote has been registered.")
         else:
-            await user.send(content="You fucced it up boi. How did u do that.")
+            pass
+            # await user.send(content="You fucced it up boi. How did u do that.")
     
     #if there's now multiple reactions and the client has reacted to the message, remove the reaction
     if (reaction.count>1) and (client.user in await reaction.users().flatten()):
@@ -506,11 +516,13 @@ async def on_reaction_remove(reaction, user):
         if removal_success:
 
             #notify the user
-            await user.send(content="Your vote has been de-registered. Did you change your mind?")
+            # await user.send(content="Your vote has been de-registered. Did you change your mind?")
+            pass
         
         else:
 
-            await user.send(content="Error deregistering vote. Fuck you.")
+            # await user.send(content="Error deregistering vote. Fuck you.")
+            pass
 
 
 
