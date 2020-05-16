@@ -1,0 +1,10 @@
+- !ring toggle - to opt in/out of server-wide ringing
+
+- !vote mute @name - vote to mute someone
+- !vote unmute @name - vote to unmute someone
+- !vote disconnect @name - vote to disconnect someone
+- !vote rename @name newname - change someone's nickname to newname
+- !vote ban @name - vote to ban someone
+- !vote rename_server newname - vote to rename the server to newname
+
+- !vote unban
