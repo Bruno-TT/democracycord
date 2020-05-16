@@ -7,9 +7,9 @@
     "unmute_duration":60,
     "unmute_min_yes_votes":2,
 
-    "voice_kick_proportion":0.66,
-    "voice_kick_duration":60,
-    "voice_kick_min_yes_votes":2,
+    "disconnect_proportion":0.66,
+    "disconnect_duration":60,
+    "disconnect_min_yes_votes":2,
 
     "rename_proportion":0.5,
     "rename_duration":30,
