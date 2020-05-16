@@ -309,14 +309,14 @@ async def on_message(message):
                 await v.new(duration, initiative_message, winCommand, win_proportion, min_yes_votes ,creator)
 
             #if it's a voice kick command
-            if len(commands)==3 and commands[1]=="voice_kick" and len(message.mentions)==1:
+            if len(commands)==3 and commands[1]=="disconnect" and len(message.mentions)==1:
 
                 #set up the vote
-                win_proportion=vote_attributes["voice_kick_proportion"]
-                duration=vote_attributes["voice_kick_duration"]
-                min_yes_votes=vote_attributes["voice_kick_min_yes_votes"]
+                win_proportion=vote_attributes["disconnect_proportion"]
+                duration=vote_attributes["disconnect_duration"]
+                min_yes_votes=vote_attributes["disconnect_min_yes_votes"]
                 kickPerson=message.mentions[0]
-                initiative_message="voice kicking {0}".format(kickPerson.display_name)
+                initiative_message="disconnecting {0}".format(kickPerson.display_name)
                 winCommand=(lambda x=kickPerson: x.edit(voice_channel=None))
                 creator=message.author
                 v=vote()
