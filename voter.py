@@ -252,8 +252,8 @@ async def on_message(message):
 
     if message.content=="!ring" and "ringing" in message.channel.name:
 
-        for i in range(5):
-            for member in message.channel.members:
+        for _ in range(5):
+            for member in [member for member in message.channel.members if member!=message.author]:
                 # while 1:
                 try:
                     await member.send(content="ring ring!")
