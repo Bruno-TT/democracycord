@@ -1,5 +1,6 @@
 #importations
 import discord, logging, asyncio, json, datetime
+from bf_hl_gen import get_headline, is_number
 
 vote_info_file_path = "vote_info.json"
 with open(vote_info_file_path) as vote_info_file:
@@ -244,6 +245,10 @@ class vote():
 async def on_message(message):
 
     commands=message.content.split(" ")
+
+    if commands[0]=="!buzzfeed" and is_number(commands[1]):
+        n=min(25,int(commands[1]))
+        await message.channel.send(content="\n".join([get_headline() for i in range(n)]))
 
     if message.content=="!ring" and "ringing" in message.channel.name:
 
