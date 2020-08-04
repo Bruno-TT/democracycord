@@ -456,8 +456,22 @@ async def on_message(message):
                 v=vote()
                 await v.new(duration, initiative_message, winCommand, win_proportion, min_yes_votes, creator)
                 
+            elif len(commands)>=2 and commands[1]=="bot_status":
 
+                status=" ".join(commands[2:])
+                
 
+                initiative_message=f"Changing the bot's status to {status}"
+
+                winCommand=lambda x=status:client.change_presence(activity=discord.Game(x))
+
+                win_proportion=vote_attributes["bot_status_proportion"]
+                duration=vote_attributes["bot_status_duration"]
+                min_yes_votes=vote_attributes["bot_status_min_yes_votes"]
+                
+                creator=message.author
+                v=vote()
+                await v.new(duration, initiative_message, winCommand, win_proportion, min_yes_votes, creator)
 
 
         

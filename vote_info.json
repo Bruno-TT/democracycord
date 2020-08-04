@@ -25,5 +25,9 @@
 
     "unban_proportion":0.75,
     "unban_duration":7200,
-    "unban_min_yes_votes":3
+    "unban_min_yes_votes":3,
+
+    "bot_status_proportion":0.5,
+    "bot_status_duration":30,
+    "bot_status_min_yes_votes":1
 }
