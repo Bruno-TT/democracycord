@@ -70,8 +70,8 @@ def get_headline():
     current_ngram = random.choice(initial_ngrams_stratified)
     generated_headline_list = list(current_ngram)
 
-    while choices := following_word_per_ngram[current_ngram]:
-        generated_headline_list.append(random.choice(choices))
+    while following_word_per_ngram[current_ngram]:
+        generated_headline_list.append(random.choice(following_word_per_ngram[current_ngram]))
         current_ngram = tuple(generated_headline_list[-order:])
     return wordlist_to_headline(generated_headline_list)
 
