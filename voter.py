@@ -250,19 +250,81 @@ async def on_message(message):
         n=min(25,int(commands[1]))
         await message.channel.send(content="\n".join([get_headline() for i in range(n)]))
 
-    if message.content=="!ring" and "ringing" in message.channel.name:
 
-        for _ in range(5):
-            for member in [member for member in message.channel.members if member!=message.author]:
-                # while 1:
-                try:
-                    await member.send(content="ring ring!")
-                    # break
-                except AttributeError:
-                    pass
-                    # continue
+    #if it was sent to the #privacy channel
+    if message.channel.id==796169676031524915:
 
-            await message.channel.send(content="@here")
+        if "!private create" in message.content:
+
+            guild = message.channel.guild
+
+            name = f"private_{commands[2]}"
+
+            # role_name = f"private_{commands[2]}"
+            
+            channel = await guild.create_voice_channel(name=name)
+
+            overwrite=discord.PermissionOverwrite()
+            overwrite2 = discord.PermissionOverwrite()
+
+            overwrite.connect=False            
+            overwrite2.connect=True
+
+            overwrite.view_channel=False
+            overwrite2.view_channel=True
+            
+
+            at_everyone=guild.get_role(588794934526607370)
+
+            # make it so people cannot see/connect by default
+            await channel.set_permissions(at_everyone, overwrite=overwrite)
+
+            # make it so people can connect
+            await channel.set_permissions(message.author, overwrite=overwrite2)
+
+
+        if "!private add" in message.content:
+
+            channel=[channel for channel in message.guild.channels if channel.name==f"private_{commands[2]}"][0]
+
+            overwrite = discord.PermissionOverwrite()
+
+            overwrite.connect=True 
+            overwrite.view_channel=True
+            
+            for member in message.mentions:await channel.set_permissions(member, overwrite=overwrite)
+
+        await message.delete(delay=0)
+
+    if "!ring" in message.content and "ringing" in message.channel.name:
+
+        if len(message.mentions)==0:
+
+            for _ in range(5):
+                for member in [member for member in message.channel.members if member!=message.author]:
+                    # while 1:
+                    try:
+                        await member.send(content="ring ring!")
+                        # break
+                    except AttributeError:
+                        pass
+                        # continue
+
+                await message.channel.send(content="@here")
+        
+        else:
+            for _ in range(5):
+                for member in message.mentions:
+                    # while 1:
+                    try:
+                        await member.send(content="ring ring!")
+                        # break
+                    except AttributeError:
+                        pass
+                        # continue
+
+                await message.channel.send(content=' '.join([m.mention for m in message.mentions]))
+
 
     if message.content=="!ring toggle":
 
