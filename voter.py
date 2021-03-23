@@ -1,6 +1,7 @@
 #importations
-import discord, logging, asyncio, json, datetime
+import discord, logging, asyncio, json, datetime, ctypes
 from bf_hl_gen import get_headline, is_number
+from discord import opus
 
 vote_info_file_path = "vote_info.json"
 with open(vote_info_file_path) as vote_info_file:
@@ -543,7 +544,6 @@ async def on_message(message):
             #send help message
             await message.channel.send(content="[this is WIP sory] possible syntaxes: '!newVote mute @Bruno'")
             
-
 #when a reaction is added
 @client.event
 async def on_reaction_add(reaction, user):
@@ -605,7 +605,41 @@ async def on_reaction_remove(reaction, user):
             # await user.send(content="Error deregistering vote. Fuck you.")
             pass
 
+#whenever anyone does anything to do with voice
+@client.event
+async def on_voice_state_update(member, before, after):
 
+    #the global instance of VoiceClient
+    global current_voice_client
+
+    #if this was triggered by someone joining a channel
+    if before.channel!=after.channel:
+
+        #if currently connected to another channel, disconnect from it
+        try:await current_voice_client.disconnect()
+        except:pass
+
+        #connect to the new channel
+        current_voice_client=await after.channel.connect()
+
+        #attempt to start playing their audio
+        try:
+            audio_source = discord.FFmpegPCMAudio(f"audio/{member.id}.mp3")
+            current_voice_client.play(audio_source)
+
+            #if successful, wait until the audio has stopped playing
+            while current_voice_client.is_playing():await asyncio.sleep(0.1)
+            
+        except:pass
+
+        #finally, leave the channel
+        await current_voice_client.disconnect()
+
+@client.event
+async def on_connect():
+    print("Attempting to load OPUS...")
+    opus.load_opus(ctypes.util.find_library("opus"))
+    print("OPUS loaded: "+str(opus.is_loaded()))    
 
 #get the key from the gitignored file
 keyFile="key.txt"
